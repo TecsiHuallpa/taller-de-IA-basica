@@ -1,0 +1,148 @@
+import random
+
+
+class PerceptronSpam:
+    def __init__(self, max_length=500):
+        """
+        Inicializa el perceptrón para mensajes de hasta max_length caracteres.
+        Cada carácter son 8 bits, así que tendremos max_length*8 entradas.
+        """
+        self.max_length = max_length
+        self.input_size = max_length * 8  # Cada carácter ASCII son 8 bits
+        self.weights = [random.uniform(-1, 1) for _ in range(self.input_size)]
+        self.bias = random.uniform(-1, 1)
+        self.learning_rate = 0.01
+
+    def texto_a_binario(self, mensaje):
+        """
+        Convierte un mensaje de texto a una lista de bits (binario).
+        Rellena con ceros si el mensaje es más corto que max_length.
+        """
+        # Convertir cada carácter a su valor ASCII y luego a binario de 8 bits
+        bits = []
+        for char in mensaje[:self.max_length]:
+            ascii_val = ord(char)
+            char_bits = [int(b) for b in f"{ascii_val:08b}"]
+            bits.extend(char_bits)
+
+        # Rellenar con ceros si el mensaje es más corto
+        bits += [0] * (self.input_size - len(bits))
+        return bits
+
+    def activacion(self, x):
+        """Función de activación escalón (step function)"""
+        return 1 if x >= 0 else 0
+
+    def predecir(self, mensaje):
+        """Predice si el mensaje es spam (1) o no (0)"""
+        # Convertir texto a binario
+        inputs = self.texto_a_binario(mensaje)
+
+        # Calcular suma ponderada
+        z = self.bias
+        for i in range(self.input_size):
+            z += self.weights[i] * inputs[i]
+
+        # Aplicar función de activación
+        return self.activacion(z)
+
+    def entrenar(self, mensaje, etiqueta_real, max_epocas=100):
+        """
+        Entrena el perceptrón con un solo ejemplo.
+        etiqueta_real: 1 para spam, 0 para no spam.
+        """
+        inputs = self.texto_a_binario(mensaje)
+        for _ in range(max_epocas):
+            prediccion = self.predecir(mensaje)
+            error = etiqueta_real - prediccion
+
+            # Si no hay error, terminar
+            if error == 0:
+                break
+
+            # Ajustar pesos y sesgo
+            for i in range(self.input_size):
+                self.weights[i] += self.learning_rate * error * inputs[i]
+            self.bias += self.learning_rate * error
+
+    def entrenar_lote(self, ejemplos, etiquetas, max_epocas=100):
+        """Entrena con múltiples ejemplos"""
+        for _ in range(max_epocas):
+            errores = 0
+            for mensaje, etiqueta in zip(ejemplos, etiquetas):
+                inputs = self.texto_a_binario(mensaje)
+                prediccion = self.predecir(mensaje)
+                error = etiqueta - prediccion
+
+                if error != 0:
+                    errores += 1
+                    for i in range(self.input_size):
+                        self.weights[i] += self.learning_rate * error * inputs[i]
+                    self.bias += self.learning_rate * error
+
+            # Si no hay errores, terminar
+            if errores == 0:
+                break
+
+
+def modo_prueba(perceptron):
+    """Función para probar el perceptrón en tiempo real"""
+    print("\n--- Modo Prueba ---")
+    print("Ingrese mensajes para clasificar (deje vacío para salir):")
+
+    while True:
+        mensaje = input("\nMensaje a clasificar: ").strip()
+        if not mensaje:
+            break
+
+        prediccion = perceptron.predecir(mensaje)
+        clasificacion = "Fraude" if prediccion == 1 else "No es fraude!"
+        print(f"Resultado: {clasificacion}")
+
+
+def main():
+    # Datos de entrenamiento predefinidos
+    mensajes_entrenamiento = [
+        "Hola, la reunión de mañana es a las 2pm. Confirma asistencia.",  # no fraude
+        "¡Gana dinero rápido! Invierte hoy y triplica tu capital: [www.invierteya.org].",  # fraude
+        "Detectamos actividad sospechosa. Verifica tu cuenta: [www.xxx.org].",  # fraude
+        "Recordatorio: cita médica el viernes a las 9am.",  # no fraude
+        "¡Felicidades! Ganaste un iPhone. Reclama en: [www.KitypatitasSuaves.org].",  # fraude
+        "Confirmación: tu pedido llegará el lunes.",  # no fraude
+        "Tu premio te espera. Ingresa datos en: [www.premiosfacil.org].",  # fraude
+        "Recordatorio importante: paga tu factura antes del jueves.",  # no fraude
+        "Urgente: tu cuenta será suspendida. Verifica en: [www.seguridadbanco.org].",  # fraude
+        "Hola Juan, ¿nos vemos para el café mañana a las 4pm?",  # no fraude
+        "¡Oferta única! Gana un viaje gratis, registra aquí: [www.viajesgratis.org].",  # fraude
+        "Notificación: tu suscripción se renueva mañana.",  # no fraude
+    ]
+    etiquetas_entrenamiento = [0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+
+    # Configuración inicial
+    max_length = max(len(m) for m in mensajes_entrenamiento) + 5  # Longitud basada en los datos de entrenamiento
+    perceptron = PerceptronSpam(max_length=max_length)
+
+    # Entrenar con los datos predefinidos
+    print("Entrenando con datos predefinidos...")
+    perceptron.entrenar_lote(mensajes_entrenamiento, etiquetas_entrenamiento)
+    print(f"Modelo entrenado con {len(mensajes_entrenamiento)} ejemplos")
+
+    # Menú principal
+    while True:
+        print("\n--- Menú Principal ---")
+        print("1. Probar modelo con nuevos mensajes")
+        print("2. Salir")
+
+        opcion = input("Seleccione una opción: ")
+
+        if opcion == '1':
+            modo_prueba(perceptron)
+        elif opcion == '2':
+            print("Saliendo del programa...")
+            break
+        else:
+            print("Opción no válida. Por favor intente nuevamente.")
+
+
+if __name__ == "__main__":
+    main()
